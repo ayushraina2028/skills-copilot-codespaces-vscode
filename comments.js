@@ -2,65 +2,25 @@
 
 const express = require('express');
 const bodyParser = require('body-parser');
-const app = express();
-const axios = require('axios');
 const cors = require('cors');
+const morgan = require('morgan');
 
+// create express app
+const app = express();
+app.use(morgan('combined'));
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors());
 
-const posts = {};
-
-const handleEvent = (type, data) => {
-  if (type === 'PostCreated') {
-    const { id, title } = data;
-    posts[id] = { id, title, comments: [] };
-  }
-
-  if (type === 'CommentCreated') {
-    const { id, content, postId, status } = data;
-    const post = posts[postId];
-    post.comments.push({ id, content, status });
-  }
-
-  if (type === 'CommentUpdated') {
-    const { id, content, postId, status } = data;
-
-    const post = posts[postId];
-    const comment = post.comments.find((comment) => {
-      return comment.id === id;
-    });
-
-    comment.status = status;
-    comment.content = content;
-  }
-};
-
-app.get('/posts', (req, res) => {
-  res.send(posts);
+// create mongodb connection
+const mongoose = require('mongoose');
+mongoose.connect('mongodb://localhost:27017/comments');
+const db = mongoose.connection;
+db.on('error', console.error.bind(console, 'connection error'));
+db.once('open', () => {
+  console.log('connected to mongodb');
 });
 
-// receive events from event bus
-app.post('/events', (req, res) => {
-  const { type, data } = req.body;
-
-  // handle event
-  handleEvent(type, data);
-
-  res.send({});
-});
-
-app.listen(4002, async () => {
-  console.log('Listening on 4002');
-
-  // get all events from event bus
-  const res = await axios.get('http://event-bus-srv:4005/events');
-
-  // replay all events
-  for (let event of res.data) {
-    console.log('Processing event:', event.type);
-
-    handleEvent(event.type, event.data);
-  }
+// create comment model
+const Comment = mongoose.model('Comment', {
+    title: String,
 });
