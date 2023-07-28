@@ -46,3 +46,16 @@
 // 45. npm install multer --save
 //// 1. load modules
 
+var express = require('express');
+var bodyParser = require('body-parser');
+var session = require('express-session');
+var multer = require('multer');
+var mysql = require('mysql');
+
+var fs = require('fs');
+var ejs = require('ejs');
+var nodemailer = require('nodemailer');
+var smtpTransport = require('nodemailer-smtp-transport');
+var moment = require('moment');
+
+var multerS3 = require('multer-s3');
