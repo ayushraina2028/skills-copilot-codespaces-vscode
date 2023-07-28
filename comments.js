@@ -1,26 +1,66 @@
-// Create web Server
-// Create a web server that can listen to requests for /hello and responds with some HTML that says <h1>Hello World</h1>
-//
-// For an extra challenge, make the a different page, like /random that responds with random number inside an h1 tag.
-//
-// You can use the code from today as a starting point.
-//
-// Don't forget to npm init first, and install and save express locally.
-//
-// Bonus:
-//
-// Add a route /pick-a-number that responds with a random number between 1 and 10. (Bonus: Add a limit query param to specify a max number)
-//
-// Add a route /hello/:name that expects a name and responds with some HTML that says <h1>Hello _name_</h1>. For example, when I visit localhost:3000/hello/Ashish it should say <h1>Hello Ashish</h1>
-//
-// Add a route /api/calculator/:operation that accepts 3 parameters: num1, num2, and operation. num1 and num2 are numbers. Let's say operation could be add, sub, mult, div, mod. Your route should perform the appropriate operation on the numbers and print out the result. For example, when I go to localhost:3000/api/calculator/add/1/2, it should print out 3.
-//
-// Add a route /api/array/concat that accepts 2 arrays within the request body and concatenates the arrays together.
-//
-// Add a route /api/array/intersect that accepts 2 arrays within the request body and prints out an array with the elements that are in both arrays.
-//
-// Add a route /api/array/except that accepts 2 arrays within the request body and prints out an array with the elements that are in the first array, but not the second.
-//
-// Add a route /api/romanize that accepts a number within the request body and prints out the Roman numeral version of that number. (Roman numerals are calculated by reducing the number down to its individual units, tens, hundreds, thousands, etc. For example, 1990 would be MCMXC: 1000=M, 900=CM, 90=XC. 2008 would be MMVIII: 2000=MM, 8=VIII.)
-//
-// Add a route /api/de-romanize that accepts a Roman numeral within the request body and
+// create web server
+
+const express = require('express');
+const bodyParser = require('body-parser');
+const app = express();
+const axios = require('axios');
+const cors = require('cors');
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors());
+
+const posts = {};
+
+const handleEvent = (type, data) => {
+  if (type === 'PostCreated') {
+    const { id, title } = data;
+    posts[id] = { id, title, comments: [] };
+  }
+
+  if (type === 'CommentCreated') {
+    const { id, content, postId, status } = data;
+    const post = posts[postId];
+    post.comments.push({ id, content, status });
+  }
+
+  if (type === 'CommentUpdated') {
+    const { id, content, postId, status } = data;
+
+    const post = posts[postId];
+    const comment = post.comments.find((comment) => {
+      return comment.id === id;
+    });
+
+    comment.status = status;
+    comment.content = content;
+  }
+};
+
+app.get('/posts', (req, res) => {
+  res.send(posts);
+});
+
+// receive events from event bus
+app.post('/events', (req, res) => {
+  const { type, data } = req.body;
+
+  // handle event
+  handleEvent(type, data);
+
+  res.send({});
+});
+
+app.listen(4002, async () => {
+  console.log('Listening on 4002');
+
+  // get all events from event bus
+  const res = await axios.get('http://event-bus-srv:4005/events');
+
+  // replay all events
+  for (let event of res.data) {
+    console.log('Processing event:', event.type);
+
+    handleEvent(event.type, event.data);
+  }
+});
